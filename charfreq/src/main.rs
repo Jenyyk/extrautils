@@ -9,6 +9,8 @@ struct Config {
     recursive: bool,
 }
 
+const READ_SIZE: usize = 65536;
+
 fn main() {
     let mut config = Config::default();
 
@@ -37,7 +39,22 @@ fn main() {
 
     // read data
     if config.stdin {
-        todo!("Implement stdin piping");
+        let stdin = std::io::stdin();
+        let mut frequencies: HashMap<char, usize> = HashMap::new();
+        let mut reader = std::io::BufReader::new(stdin.lock());
+        let mut read_buffer = [0u8; READ_SIZE];
+        while let Ok(bytes_read) = reader.read(&mut read_buffer) {
+            for &b in &read_buffer[..bytes_read] {
+                if b != b'\n' {
+                    *frequencies.entry(b as char).or_insert(0) += 1;
+                }
+            }
+            if bytes_read < READ_SIZE {
+                break;
+            }
+        }
+        print_frequency(frequencies);
+        std::process::exit(0);
     }
 
     let mut file_descriptors = Vec::new();
@@ -60,7 +77,6 @@ fn main() {
     for file_descriptor in &file_descriptors {
         let file = fs::File::open(file_descriptor).unwrap();
         let mut reader = std::io::BufReader::new(file);
-        const READ_SIZE: usize = 65536;
         let mut read_buffer = [0u8; READ_SIZE];
         while let Ok(bytes_read) = reader.read(&mut read_buffer) {
             for &b in &read_buffer[..bytes_read] {
