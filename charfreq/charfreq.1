@@ -1,0 +1,36 @@
+.TH charfreq 1 "date not needed" "too lazy to version" "User Commands"
+.SH NAME
+.B charfreq
+\- count character frequencies in a file or stdin
+
+.SH SYNOPSIS
+.B charfreq
+.RB [ \-flags ]
+.RB [ \-flag
+.RI [ value ]]
+.RB [ \-\-option
+.RI [ value ]]
+.IR PATHS " / " -
+
+.SH DESCRIPTION
+Takes in a file or input from stdin and makes a frequency map of the characters in said input.
+
+.SH OPTIONS
+.TP
+.BR \-r ", " \-\-recursive
+If given a directory as input, recurses over all files and directories in that directory.
+.TP
+.BR \-g ", " \-\-group
+If multiple files given as input, groups them all together into one statistic, as opposed to counting them seperately when this flag is not set
+.TP
+.B \-
+Reads from stdin instead of parsing args as paths to files
+
+.SH AUTHORS
+.RI "Jenyyk / Rezyys / Jan Křivský: " "https://github.com/Jenyyk"
+
+.SH LICENSE
+Copyright (c) 2026 Jan Křivský. This program is licensed under the MIT License.
+
+.SH BUGS
+.RI "For bug reports please open an issue on github: " "https://github.com/Jenyyk/extrautils"

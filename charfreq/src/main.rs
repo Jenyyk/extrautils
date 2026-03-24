@@ -126,6 +126,7 @@ fn get_files_recursive(dir: &str, file_descriptors: &mut Vec<String>) {
 
 fn parse_option(option: &str, config: &mut Config) {
     match option {
+        "--help" => println!("For help, check the manpage: man charfreq"),
         "--group" => config.group = true,
         "--recursive" => config.recursive = true,
         _ => panic!("unknown option: {}", option),
@@ -141,6 +142,7 @@ fn parse_flags(flag: &str, config: &mut Config) {
     let _ = chars.next();
     for c in chars {
         match c {
+            'h' => println!("For help, check the manpage: man charfreq"),
             'g' => config.group = true,
             'r' => config.recursive = true,
             _ => panic!("unknown flag: {}", c),
