@@ -1,5 +1,5 @@
 [workspace]
-members = ["charfreq"]
+members = ["charfreq", "pi"]
 resolver = "3"
 
 [profile.release]
