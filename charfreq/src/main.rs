@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 
@@ -40,20 +39,20 @@ fn main() {
     // read data
     if config.stdin {
         let stdin = std::io::stdin();
-        let mut frequencies: HashMap<char, usize> = HashMap::new();
+        let mut frequencies: [u8; 256] = [0; 256];
         let mut reader = std::io::BufReader::new(stdin.lock());
         let mut read_buffer = [0u8; READ_SIZE];
         while let Ok(bytes_read) = reader.read(&mut read_buffer) {
             for &b in &read_buffer[..bytes_read] {
                 if b != b'\n' {
-                    *frequencies.entry(b as char).or_insert(0) += 1;
+                    frequencies[b as usize] += 1;
                 }
             }
             if bytes_read < READ_SIZE {
                 break;
             }
         }
-        print_frequency(frequencies);
+        print_frequency(&frequencies);
         std::process::exit(0);
     }
 
@@ -73,7 +72,7 @@ fn main() {
     }
 
     // do the hustle
-    let mut frequencies: HashMap<char, usize> = HashMap::new();
+    let mut frequencies: [u8; 256] = [0; 256];
     for file_descriptor in &file_descriptors {
         let file = fs::File::open(file_descriptor).unwrap();
         let mut reader = std::io::BufReader::new(file);
@@ -81,7 +80,7 @@ fn main() {
         while let Ok(bytes_read) = reader.read(&mut read_buffer) {
             for &b in &read_buffer[..bytes_read] {
                 if b != b'\n' {
-                    *frequencies.entry(b as char).or_insert(0) += 1;
+                    frequencies[b as usize] += 1;
                 }
             }
             if bytes_read < READ_SIZE {
@@ -90,24 +89,26 @@ fn main() {
         }
         if !config.group {
             println!("{}:", file_descriptor);
-            print_frequency(std::mem::take(&mut frequencies));
+            print_frequency(&frequencies);
+            frequencies = [0; 256];
         }
     }
     if config.group {
-        print_frequency(frequencies);
+        print_frequency(&frequencies);
     }
 }
 
-fn print_frequency(frequencies: HashMap<char, usize>) {
-    let mut sorted: Vec<(char, usize)> = frequencies.into_iter().collect::<Vec<_>>();
-    sorted.sort_unstable_by_key(|kv| kv.1);
-    for (c, count) in sorted.into_iter().rev() {
-        // escape the newline char
-        if c == '\n' {
-            println!(" \\n - {}", count);
-            continue;
+fn print_frequency(frequencies: &[u8]) {
+    for (i, &count) in frequencies.iter().enumerate() {
+        if count > 0 {
+            let c = i as u8 as char;
+            // escape the newline char
+            if c == '\n' {
+                println!(" \\n - {}", count);
+                continue;
+            }
+            println!("  {} - {}", c, count);
         }
-        println!("  {} - {}", c, count);
     }
 }
 
