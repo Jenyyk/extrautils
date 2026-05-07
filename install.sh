@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-programs=("charfreq" "pi")
+programs=("charfreq" "pi" "range")
 cargo build --release --locked
 for bin in "${programs[@]}"; do
     sudo cp "target/release/$bin" /usr/bin/
