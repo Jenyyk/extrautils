@@ -2,9 +2,9 @@
 A collection of programs i made to make my life easier
 
 ## programs:
-**charfreq** - counts frequency of characters in files or stdin input
-**pi** - prints pi up to a certain number of digits
-**range** - prints a range of values to stdout (faster than `seq` from GNU/coreutils!)
+**charfreq** - counts frequency of characters in files or stdin input  
+**pi** - prints pi up to a certain number of digits  
+**range** - prints a range of values to stdout (faster than `seq` from GNU/coreutils!)  
 
 ## installation:
 ```sh

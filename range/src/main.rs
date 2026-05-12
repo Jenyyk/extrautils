@@ -1,10 +1,14 @@
-use std::{io::Write};
+use std::io::Write;
 
 fn main() {
     let mut args = std::env::args();
     let _program = args.next();
     let (start, end, step): (usize, usize, usize) = match (args.next(), args.next(), args.next()) {
-        (Some(start), Some(end), Some(step)) => (start.parse().unwrap(), end.parse().unwrap(), step.parse().unwrap()),
+        (Some(start), Some(end), Some(step)) => (
+            start.parse().unwrap(),
+            end.parse().unwrap(),
+            step.parse().unwrap(),
+        ),
         (Some(start), Some(end), None) => (start.parse().unwrap(), end.parse().unwrap(), 1),
         (Some(end), None, _) => (0, end.parse().unwrap(), 1),
         (None, _, _) => {
@@ -18,18 +22,27 @@ fn main() {
     const MAX_NUM_LEN: usize = 39;
     let mut buf = [b'\n'; MAX_NUM_LEN];
     let mut i = 0;
+    let mut skip_str_len = 1usize;
     loop {
-        let mut curr = start + i * step;
-        if curr >= end {
+        let mut curr_mut = start + i * step;
+        if curr_mut >= end {
             break;
         }
 
         let mut str_len = 0usize;
         loop {
-            buf[MAX_NUM_LEN - str_len - 2] = usize_to_char_as_u8(curr % 10);
+            let digit_u8 = usize_to_char_as_u8(curr_mut % 10);
+            let indexed = &mut buf[MAX_NUM_LEN - str_len - 2];
+            if *indexed == digit_u8 {
+                str_len = skip_str_len;
+                break;
+            } else {
+                *indexed = digit_u8;
+            }
             str_len += 1;
-            curr /= 10;
-            if curr == 0 {
+            curr_mut /= 10;
+            if curr_mut == 0 {
+                skip_str_len = str_len;
                 break;
             }
         }
@@ -40,6 +53,7 @@ fn main() {
 }
 
 /// panics if the argument isnt a single digit
+#[inline]
 fn usize_to_char_as_u8(num: usize) -> u8 {
     match num {
         0 => b'0',
