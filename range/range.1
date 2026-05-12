@@ -1,0 +1,36 @@
+.TH range 1 "date not needed" "too lazy to version" "User Commands"
+.SH NAME
+.B range
+\- print a range of numbers to stdout
+
+.SH SYNOPSIS
+.B range
+.RB [ start ]
+.B end
+.RB [ "increment by" ]
+
+
+.SH DESCRIPTION
+Prints a range of numbers seperated by newlines to stdout. Takes an 'end' argument, and an optional 'start' and 'increment by' argument. It is faster than seq btw!
+
+.SH ARGUMENTS
+.TP
+.B start
+If given, sets the number the range will start at. This number is INCLUSIVE, meaning the printed range will include this number.
+.TP
+.B end
+Sets the number the range will end at. This number is EXCLUSIVE, meaning the printed range WILL NOT contain this number
+.TP
+.B increment by
+If given, the range will increment by this value, instead of 1
+.TP
+If no arguments are given, the program will print a help message explaining the usage
+
+.SH AUTHORS
+.RI "Jenyyk / Rezyys / Jan Křivský: " "https://github.com/Jenyyk"
+
+.SH LICENSE
+Copyright (c) 2026 Jan Křivský. This program is licensed under the MIT License.
+
+.SH BUGS
+.RI "For bug reports please open an issue on github: " "https://github.com/Jenyyk/extrautils"
