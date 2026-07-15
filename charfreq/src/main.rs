@@ -1,14 +1,16 @@
 use std::fs;
-use std::io::Read;
+use std::io::{BufReader, Read};
 
 #[derive(Debug, Default)]
 struct Config {
     group: bool,
     stdin: bool,
     recursive: bool,
+    sort: bool,
 }
 
 const READ_SIZE: usize = 65536;
+const UNICODE_CHAR_COUNT: usize = 1_114_112;
 
 fn main() {
     let mut config = Config::default();
@@ -39,20 +41,10 @@ fn main() {
     // read data
     if config.stdin {
         let stdin = std::io::stdin();
-        let mut frequencies: [u8; 256] = [0; 256];
-        let mut reader = std::io::BufReader::new(stdin.lock());
-        let mut read_buffer = [0u8; READ_SIZE];
-        while let Ok(bytes_read) = reader.read(&mut read_buffer) {
-            for &b in &read_buffer[..bytes_read] {
-                if b != b'\n' {
-                    frequencies[b as usize] += 1;
-                }
-            }
-            if bytes_read < READ_SIZE {
-                break;
-            }
-        }
-        print_frequency(&frequencies);
+        let mut frequencies = vec![0; UNICODE_CHAR_COUNT];
+        let reader = std::io::BufReader::new(stdin.lock());
+        count_from_bufreader(reader, &mut frequencies);
+        print_frequency(&frequencies, &config);
         std::process::exit(0);
     }
 
@@ -72,33 +64,63 @@ fn main() {
     }
 
     // do the hustle
-    let mut frequencies: [u8; 256] = [0; 256];
+    let mut frequencies = vec![0; UNICODE_CHAR_COUNT];
     for file_descriptor in &file_descriptors {
         let file = fs::File::open(file_descriptor).unwrap();
-        let mut reader = std::io::BufReader::new(file);
-        let mut read_buffer = [0u8; READ_SIZE];
-        while let Ok(bytes_read) = reader.read(&mut read_buffer) {
-            for &b in &read_buffer[..bytes_read] {
-                if b != b'\n' {
-                    frequencies[b as usize] += 1;
-                }
-            }
-            if bytes_read < READ_SIZE {
-                break;
-            }
-        }
+        let reader = std::io::BufReader::new(file);
+        count_from_bufreader(reader, &mut frequencies);
         if !config.group {
             println!("{}:", file_descriptor);
-            print_frequency(&frequencies);
-            frequencies = [0; 256];
+            print_frequency(&frequencies, &config);
+            frequencies = vec![0; UNICODE_CHAR_COUNT];
         }
     }
     if config.group {
-        print_frequency(&frequencies);
+        print_frequency(&frequencies, &config);
     }
 }
 
-fn print_frequency(frequencies: &[u8]) {
+fn count_from_bufreader<T: std::io::Read>(mut reader: BufReader<T>, frequencies: &mut [usize]) {
+    let mut read_buffer = [0u8; READ_SIZE];
+    while let Ok(bytes_read) = reader.read(&mut read_buffer) {
+        if bytes_read == 0 {
+            break;
+        }
+        let str = std::str::from_utf8(&read_buffer[..bytes_read]).expect("Found invalid UTF-8 (todo: fix)");
+        for c in str.chars() {
+            frequencies[c as usize] += 1;
+        }
+    }
+}
+
+fn print_frequency(frequencies: &[usize], config: &Config) {
+    if config.sort {
+        print_frequency_sorted(frequencies);
+    } else {
+        print_frequency_however(frequencies);
+    }
+}
+
+fn print_frequency_sorted(frequencies: &[usize]) {
+    let mut pairs: Vec<(usize, usize)> = Vec::new();
+    for (i, &count) in frequencies.iter().enumerate() {
+        if count > 0 {
+            pairs.push((i, count));
+        }
+    }
+    pairs.sort_by(|a, b| a.1.cmp(&b.1));
+    for (i, count) in pairs.into_iter() {
+        let c = i as u8 as char;
+        // escape the newline char
+        if c == '\n' {
+            println!(" \\n - {}", count);
+            continue;
+        }
+        println!("  {} - {}", c, count);
+    }
+}
+
+fn print_frequency_however(frequencies: &[usize]) {
     for (i, &count) in frequencies.iter().enumerate() {
         if count > 0 {
             let c = i as u8 as char;
@@ -130,6 +152,7 @@ fn parse_option(option: &str, config: &mut Config) {
         "--help" => println!("For help, check the manpage: man charfreq"),
         "--group" => config.group = true,
         "--recursive" => config.recursive = true,
+        "--sort" => config.sort = true,
         _ => panic!("unknown option: {}", option),
     }
 }
@@ -146,6 +169,7 @@ fn parse_flags(flag: &str, config: &mut Config) {
             'h' => println!("For help, check the manpage: man charfreq"),
             'g' => config.group = true,
             'r' => config.recursive = true,
+            's' => config.sort = true,
             _ => panic!("unknown flag: {}", c),
         }
     }
