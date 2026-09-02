@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufReader, Read};
 
 #[derive(Debug, Default)]
 struct Config {
@@ -45,23 +45,37 @@ fn main() {
         vec![Box::new(reader)]
     } else {
         for file_name in files.clone() {
-            let file_metadata = fs::metadata(&file_name).unwrap();
+            let file_metadata = fs::metadata(&file_name).unwrap_or_else(|_| {
+                eprintln!("No such file or directory \"{}\"", file_name);
+                std::process::exit(1)
+            });
             if config.recursive && file_metadata.is_dir() {
                 get_files_recursive(&file_name, &mut file_descriptors);
             } else if file_metadata.is_file() {
                 file_descriptors.push(file_name);
             }
         }
-        file_descriptors.iter().map(|descriptor| {
-            let file = fs::File::open(descriptor).unwrap();
-            Box::new(std::io::BufReader::new(file)) as Box<BufReader<dyn Read>>
-        }).collect()
+        file_descriptors
+            .iter()
+            .map(|descriptor| {
+                let file = fs::File::open(descriptor).unwrap();
+                Box::new(std::io::BufReader::new(file)) as Box<BufReader<dyn Read>>
+            })
+            .collect()
     };
 
     // do the hustle
     let mut frequencies = vec![0; UNICODE_CHAR_COUNT];
     for (i, reader) in readers.into_iter().enumerate() {
-        count_from_bufreader(reader, &mut frequencies);
+        if count_from_bufreader(reader, &mut frequencies).is_err() {
+            let bad_file = if config.stdin {
+                "stdin"
+            } else {
+                &file_descriptors[i]
+            };
+            eprintln!("File {} contains invalid UTF-8.", bad_file);
+            continue;
+        };
         if !config.group && !config.stdin {
             println!("{}:", file_descriptors[i]);
             print_frequency(&frequencies, &config);
@@ -73,17 +87,21 @@ fn main() {
     }
 }
 
-fn count_from_bufreader<T: std::io::Read + ?Sized>(mut reader: Box<BufReader<T>>, frequencies: &mut [usize]) {
+fn count_from_bufreader<T: std::io::Read + ?Sized>(
+    mut reader: Box<BufReader<T>>,
+    frequencies: &mut [usize],
+) -> Result<(), std::str::Utf8Error> {
     let mut read_buffer = [0u8; READ_SIZE];
     while let Ok(bytes_read) = reader.read(&mut read_buffer) {
         if bytes_read == 0 {
             break;
         }
-        let str = std::str::from_utf8(&read_buffer[..bytes_read]).expect("Found invalid UTF-8 (todo: fix)");
+        let str = std::str::from_utf8(&read_buffer[..bytes_read])?;
         for c in str.chars() {
             frequencies[c as usize] += 1;
         }
     }
+    Ok(())
 }
 
 fn print_frequency(frequencies: &[usize], config: &Config) {
@@ -101,7 +119,7 @@ fn print_frequency_sorted(frequencies: &[usize]) {
             pairs.push((i, count));
         }
     }
-    pairs.sort_by(|a, b| a.1.cmp(&b.1));
+    pairs.sort_by_key(|pair| pair.1);
     for (i, count) in pairs.into_iter() {
         let c = i as u8 as char;
         // escape the newline char
