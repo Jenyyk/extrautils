@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::{BufReader, Read};
+use std::io::{BufRead, BufReader, Read};
 
 #[derive(Debug, Default)]
 struct Config {
@@ -38,49 +38,42 @@ fn main() {
         println!("files: {:?}", files);
     }
 
-    // read data
-    if config.stdin {
-        let stdin = std::io::stdin();
-        let mut frequencies = vec![0; UNICODE_CHAR_COUNT];
-        let reader = std::io::BufReader::new(stdin.lock());
-        count_from_bufreader(reader, &mut frequencies);
-        print_frequency(&frequencies, &config);
-        std::process::exit(0);
-    }
-
     let mut file_descriptors = Vec::new();
-    for file_name in files {
-        let file_metadata = fs::metadata(&file_name).unwrap();
-        if config.recursive && file_metadata.is_dir() {
-            get_files_recursive(&file_name, &mut file_descriptors);
-        } else if file_metadata.is_file() {
-            file_descriptors.push(file_name);
+    let readers: Vec<Box<BufReader<dyn Read>>> = if config.stdin {
+        let stdin = std::io::stdin();
+        let reader = std::io::BufReader::new(stdin.lock());
+        vec![Box::new(reader)]
+    } else {
+        for file_name in files.clone() {
+            let file_metadata = fs::metadata(&file_name).unwrap();
+            if config.recursive && file_metadata.is_dir() {
+                get_files_recursive(&file_name, &mut file_descriptors);
+            } else if file_metadata.is_file() {
+                file_descriptors.push(file_name);
+            }
         }
-    }
-
-    #[cfg(any(debug_assertions, test))]
-    {
-        println!("file_descriptors: {:?}", file_descriptors);
-    }
+        file_descriptors.iter().map(|descriptor| {
+            let file = fs::File::open(descriptor).unwrap();
+            Box::new(std::io::BufReader::new(file)) as Box<BufReader<dyn Read>>
+        }).collect()
+    };
 
     // do the hustle
     let mut frequencies = vec![0; UNICODE_CHAR_COUNT];
-    for file_descriptor in &file_descriptors {
-        let file = fs::File::open(file_descriptor).unwrap();
-        let reader = std::io::BufReader::new(file);
+    for (i, reader) in readers.into_iter().enumerate() {
         count_from_bufreader(reader, &mut frequencies);
-        if !config.group {
-            println!("{}:", file_descriptor);
+        if !config.group && !config.stdin {
+            println!("{}:", file_descriptors[i]);
             print_frequency(&frequencies, &config);
             frequencies = vec![0; UNICODE_CHAR_COUNT];
         }
     }
-    if config.group {
+    if config.group || config.stdin {
         print_frequency(&frequencies, &config);
     }
 }
 
-fn count_from_bufreader<T: std::io::Read>(mut reader: BufReader<T>, frequencies: &mut [usize]) {
+fn count_from_bufreader<T: std::io::Read + ?Sized>(mut reader: Box<BufReader<T>>, frequencies: &mut [usize]) {
     let mut read_buffer = [0u8; READ_SIZE];
     while let Ok(bytes_read) = reader.read(&mut read_buffer) {
         if bytes_read == 0 {
